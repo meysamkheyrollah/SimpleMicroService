@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  notification-postgres:
+    container_name: notification-postgres
+    image: postgres:14
+    volumes:
+      - notification_postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=notification
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+    networks:
+      - backend
+  redis:
+    container_name: redis
+    image: redis:6
+    networks:
+      - backend
+  notification:
+    container_name: notification
+    build: .
+    command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    depends_on:
+      - notification-postgres
+      - redis
+    environment:
+      - POSTGRES_DB=notification
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_HOST=notification-postgres
+      - POSTGRES_PORT=5432
+    networks:
+      - backend
+  celery:
+    container_name: celery
+    build: .
+    command: celery -A notification worker --loglevel=info
+    volumes:
+      - .:/app
+    depends_on:
+      - notification-postgres
+      - redis
+    environment:
+      - POSTGRES_DB=notification
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_HOST=notification-postgres
+      - POSTGRES_PORT=5432
+    networks:
+      - backend
+
+volumes:
+  notification_postgres_data:
+
+networks:
+  backend:
+    external: true
+    name: backend

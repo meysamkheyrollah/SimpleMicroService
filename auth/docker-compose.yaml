@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  auth-postgres:
+    container_name: auth-postgres
+    image: postgres:14
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_DB=auth
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+    networks:
+      - backend
+  auth:
+    container_name: auth
+    build: .
+    command: bash -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+      - "50051:50051"
+    depends_on:
+      - auth-postgres
+    environment:
+      - POSTGRES_DB=auth
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_HOST=auth-postgres
+      - POSTGRES_PORT=5432
+    networks:
+      - backend
+
+volumes:
+  auth_postgres_data:
+
+
+networks:
+  backend:
+    external: true
+    name: backend
